@@ -1,51 +1,63 @@
 <?php
 session_start();
-require_once "includes/connection.php";
-require_once "classes/paginator.php";
-require_once "classes/Auth.php";
+require_once "includes/init.php";
 
+// بررسی وضعیت لاگین
 if (!Auth::isLoggedIn()) {
-    die("❌ دسترسی غیرمجاز! لطفاً ابتدا وارد شوید.");
+    Url::redirect('/login.php');
+    exit;
 }
 
-// اگر وارد شده بود، اینو نشون بده:
-// echo "✅ خوش آمدی کاربر عزیز! <a href='logout.php'>خروج</a>";
+// اتصال به دیتابیس
+require_once "includes/connection.php";
 
-// تنظیمات صفحه‌بندی
-$page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int) $_GET['page'] : 1;
-$records_per_page = 5;
+// واکشی پست‌ها از دیتابیس به همراه اطلاعات کاربر
+$sql = "SELECT posts.*, users.username, users.avatar 
+        FROM posts 
+        JOIN users ON posts.user_id = users.id 
+        ORDER BY posts.created_at DESC";
 
-// مجموع پست‌ها
-$total_query = $conn->query("SELECT COUNT(*) AS total FROM posts");
-$total_records = $total_query->fetch_assoc()['total'];
+$result = $conn->query($sql);
 
-// صفحه‌بندی
-$paginator = new Paginator($page, $records_per_page, $total_records);
+$post_data = [];
 
-// دریافت پست‌ها
-$sql = "SELECT * FROM posts ORDER BY created_at DESC LIMIT {$paginator->limit} OFFSET {$paginator->offset}";
-$posts = $conn->query($sql);
+if ($result && $result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+        $avatar = !empty($row['avatar']) ? $row['avatar'] : './images/default_avatar.png';
+        $username = htmlspecialchars($row['username']);
+        $minutes_ago = rand(1, 59); // برای تست؛ در عمل باید محاسبه دقیق‌تر زمان انجام بشه
+        $image = htmlspecialchars($row['image']);
+        $likes = rand(10, 500); // برای تست؛ اگر سیستم لایک داری، از COUNT(likes.id) استفاده کن
+        $caption = htmlspecialchars($row['caption']);
+        $comments_count = rand(0, 10); // برای تست؛ اگر سیستم کامنت داری، از COUNT(comments.id) استفاده کن
 
-// نمایش پست‌ها
-while ($row = $posts->fetch_assoc()) {
-    $image = htmlspecialchars($row['image']);
-    $caption = htmlspecialchars($row['caption']);
-    echo "<div class='post'>";
-    echo "<img src='uploads/$image' class='post-img' alt='post image'>";
-    echo "<p class='caption'>$caption</p>";
-    echo "</div>";
+        $post_data[] = [
+            $avatar,        // پروفایل عکس
+            $username,      // نام کاربری
+            $minutes_ago,   // دقیقه پیش (تستی)
+            $image,         // عکس پست
+            $likes,         // تعداد لایک
+            $caption,       // کپشن
+            $comments_count // تعداد کامنت
+        ];
+    }
 }
+$page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+$limit = 5;
+
+$total_result = $conn->query("SELECT COUNT(*) as total FROM posts");
+$total = $total_result->fetch_assoc()['total'];
+
+$paginator = new Paginator($page, $limit, $total);
+$offset = $paginator->offset;
+
+$sql = "SELECT posts.*, users.username, users.avatar 
+        FROM posts 
+        JOIN users ON posts.user_id = users.id 
+        ORDER BY posts.created_at DESC
+        LIMIT $limit OFFSET $offset";
+
 ?>
-
-<!-- دکمه‌های صفحه‌بندی -->
-<div class="pagination">
-    <?php if ($paginator->previous): ?>
-        <a href="home.php?page=<?= $paginator->previous ?>" class="btn">⬅️ قبلی</a>
-    <?php endif; ?>
-    <?php if ($paginator->next): ?>
-        <a href="home.php?page=<?= $paginator->next ?>" class="btn">بعدی ➡️</a>
-    <?php endif; ?>
-</div>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -689,6 +701,10 @@ while ($row = $posts->fetch_assoc()) {
         </div>
 
     </div>
+
+    <script>
+    const post_data = <?php echo json_encode($post_data); ?>;
+    </script>
 
     <!-- <script src="./sass/vender/bootstrap.bundle.js"></script>
     <script src="./sass/vender/bootstrap.bundle.min.js"></script> -->

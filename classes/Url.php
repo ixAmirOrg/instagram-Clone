@@ -8,7 +8,7 @@ class Url
             $protocol = 'http';
 
         }
-        header("Location: $protocol://" . $_SERVER['HTTP_HOST'] . '/ظثFinal-Project/' . $path);
+        header("Location: $protocol://" . $_SERVER['HTTP_HOST'] . '/Final-Project/' . $path);
         exit();
     }
 }
