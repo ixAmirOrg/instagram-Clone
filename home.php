@@ -133,7 +133,7 @@ $sql = "SELECT posts.*, users.username, users.avatar
 
                             </li>
                             <li>
-                                <a href="./profile.html">
+                                <a href="./profile.php">
                                     <img class="circle story" src="./images/profile_img.jpg">
                                     <span class="d-none d-lg-block ">Profile</span>
                                 </a>
@@ -256,7 +256,7 @@ $sql = "SELECT posts.*, users.username, users.avatar
                 <a href="./explore.html"><img src="./images/compass.png"></a>
                 <a href="./reels.html"><img src="./images/video.png"></a>
                 <a href="#" data-bs-toggle="modal" data-bs-target="#create_modal"><img src="./images/tab.png"></a>
-                <a href="profile.html"><img class="circle story" src="./images/profile_img.jpg"></a>
+                <a href="profile.php"><img class="circle story" src="./images/profile_img.jpg"></a>
             </div>
         </div>
         <!-- search  -->
@@ -705,7 +705,7 @@ $sql = "SELECT posts.*, users.username, users.avatar
     <script>
     const post_data = <?php echo json_encode($post_data); ?>;
     </script>
-
+    
     <!-- <script src="./sass/vender/bootstrap.bundle.js"></script>
     <script src="./sass/vender/bootstrap.bundle.min.js"></script> -->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.7/dist/umd/popper.min.js" integrity="sha384-zYPOMqeu1DAVkHiLqWBUTcbYfZ8osu1Nd6Z89ify25QV9guujx43ITvfi12/QExE" crossorigin="anonymous"></script>

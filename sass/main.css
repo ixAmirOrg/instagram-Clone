@@ -3,6 +3,7 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  font-family: vazirmatn;
 }
 
 body {
@@ -56,7 +57,8 @@ p {
 }
 
 img {
-  object-fit: cover;
+  -o-object-fit: cover;
+     object-fit: cover;
 }
 
 .dropup .dropdown-toggle::after {
@@ -100,6 +102,7 @@ button.log_btn:hover {
   width: 103px;
 }
 .dropdown .dropdown-menu {
+  width: -moz-fit-content;
   width: fit-content;
 }
 .dropdown .dropdown-menu .dropdown-item {
@@ -547,6 +550,8 @@ button.log_btn:hover {
   font-weight: 500;
 }
 .nav .menu ul li a img {
+  -o-object-fit: contain;
+     object-fit: contain;
   margin-right: 10px;
   width: 24px;
 }
@@ -949,6 +954,7 @@ button.log_btn:hover {
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 10px;
+  width: -moz-fit-content;
   width: fit-content;
   margin: auto;
 }
@@ -1363,6 +1369,7 @@ button.log_btn:hover {
 }
 #message .message_container .message .content .p_message {
   width: 60%;
+  width: -moz-fit-content;
   width: fit-content;
   padding: 10px 20px;
   border-radius: 22px;
@@ -1513,7 +1520,14 @@ button.log_btn:hover {
 }
 .profile_container .profile_info .cart .img img {
   width: 150px;
+  height: 150px;
   border-radius: 50%;
+  -o-object-fit: cover;
+     object-fit: cover;
+  -o-object-position: center;
+     object-position: center;
+  border: 2px solid #ddd;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
 }
 @media screen and (max-width: 498px) {
   .profile_container .profile_info .cart .img img {

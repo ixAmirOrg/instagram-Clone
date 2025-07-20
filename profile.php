@@ -1,3 +1,41 @@
+<?php
+session_start();
+require_once "includes/connection.php";
+
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit;
+}
+
+$user_id = $_SESSION['user_id'];
+
+// گرفتن اطلاعات کاربر
+$stmt = $conn->prepare("SELECT username, first_name, last_name, avatar, bio FROM users WHERE id = ?");
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$user_result = $stmt->get_result();
+$user = $user_result->fetch_assoc();
+
+$full_name = htmlspecialchars($user['first_name'] . ' ' . $user['last_name']);
+$username = htmlspecialchars($user['username']);
+$bio = nl2br(htmlspecialchars($user['bio']));
+$avatar = !empty($user['avatar']) ? $user['avatar'] : 'images/default-avatar.png';
+
+// گرفتن پست‌های کاربر
+$post_stmt = $conn->prepare("SELECT image FROM posts WHERE user_id = ? ORDER BY created_at DESC");
+$post_stmt->bind_param("i", $user_id);
+$post_stmt->execute();
+$post_result = $post_stmt->get_result();
+
+$posts = [];
+while ($row = $post_result->fetch_assoc()) {
+    $posts[] = $row['image'];
+}
+$post_count = count($posts);
+?>
+
+
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -73,7 +111,7 @@
 
                             </li>
                             <li>
-                                <a href="./profile.html">
+                                <a href="./profile.php">
                                     <img class="circle story" src="./images/profile_img.jpg">
                                     <span class="d-none d-lg-block ">Profile</span>
                                 </a>
@@ -194,7 +232,7 @@
                 <a href="./explore.html"><img src="./images/compass.png"></a>
                 <a href="./reels.html"><img src="./images/video.png"></a>
                 <a  href="#" data-bs-toggle="modal" data-bs-target="#create_modal"><img src="./images/tab.png"></a>
-                <a href="profile.html"><img class="circle story" src="./images/profile_img.jpg"></a>
+                <a href="profile.php"><img class="circle story" src="./images/profile_img.jpg"></a>
             </div>
         </div>
         <!-- search  -->
@@ -362,27 +400,27 @@
         <div class="profile_container">
             <div class="profile_info">
                 <div class="cart">
-                        <div class="img">
-                            <img src="./images/profile_img.jpg" alt="">
+                    <div class="img">
+                        <img src="<?php echo $avatar; ?>" alt="">
+                    </div>
+                    <div class="info">
+                        <p class="name">
+                            <?php echo $full_name; ?>
+                            <button class="edit_profile" onclick="location.href='edit_profile.php'">
+                                Edit profile 
+                            </button>
+                        </p>
+                        <div class="general_info">
+                            <p><span><?php echo $post_count; ?></span> post</p>
+                            <p><span>25K</span> followers</p> <!-- در آینده داینامیک -->
+                            <p><span>137</span> following</p> <!-- در آینده داینامیک -->
                         </div>
-                        <div class="info">
-                            <p class="name">
-                                AmirAli
-                                <button class="edit_profile">
-                                    Edit profile 
-                                </button>
-                            </p>
-                            <div class="general_info">
-                                <p><span>5</span> post</p>
-                                <p><span>25K</span> followers</p>
-                                <p><span>137</span> following</p>
-                            </div>
-                            <p class="nick_name"> BackEnd Programmer From IRAN 🇮🇷 </p>
-                            <p class="desc">
-                                18 y.o <br>
-                                
-                            </p>
-                        </div>
+                        <p class="nick_name">@<?php echo $username; ?></p>
+                        <p class="desc">
+                            <?php echo $bio; ?>
+                        </p>
+                    </div>
+
                 </div>
             </div>
             <div class="highlights">
@@ -424,21 +462,15 @@
                   <div class="tab-content" id="pills-tabContent">
                     <div class="tab-pane fade show active" id="pills-home" role="tabpanel" aria-labelledby="pills-home-tab" tabindex="0">
                         <div id="posts_sec" class="post">
-                            <div class="item">
-                                <img class="img-fluid item_img" src="https://i.ibb.co/Jqh3rHv/img1.jpg" alt="">
-                            </div>
-                            <div class="item">
-                                <img class="img-fluid item_img" src="https://i.ibb.co/2ZxBFVp/img2.jpg" alt="">
-                            </div>
-                            <div class="item">
-                                <img class="img-fluid item_img" src="https://i.ibb.co/5vQt677/img3.jpg" alt="">
-                            </div>
-                            <div class="item">
-                                <img class="img-fluid item_img" src="https://i.ibb.co/pJ8thst/account13.jpg" alt="">
-                            </div>
-                            <div class="item">
-                                <img class="img-fluid item_img" src="https://i.ibb.co/j8L7FPY/account10.jpg" alt="">
-                            </div>
+                            <?php if (empty($posts)): ?>
+                                <p>هیچ پستی هنوز منتشر نشده.</p>
+                            <?php else: ?>
+                                <?php foreach ($posts as $img_path): ?>
+                                    <div class="item">
+                                        <img class="img-fluid item_img" src="<?php echo htmlspecialchars($img_path); ?>" alt="Post Image">
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
                         </div>
                     </div>
                     <div class="tab-pane fade" id="pills-profile" role="tabpanel" aria-labelledby="pills-profile-tab" tabindex="0">
