@@ -637,10 +637,12 @@ $sql = "SELECT posts.*, users.username, users.avatar
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <form method="post">
+                        <form action="update_comment.php" method="POST">
                             <div class="input">
                                 <img src="./images/profile_img.jpg" alt="">
-                                <input type="text" id="emoji_comment" placeholder="Add a comment..." />
+                                <input name="comment-input" type="text" id="emoji_comment" placeholder="Add a comment..." />
+                                <input type="hidden" name="post_id" value="2">
+                                <button type="submit" style="border: 0 solid #ffffff; background-color: #ffffff;">Send</button>
                             </div>
                             <!-- <div class="emogi">
                                 <img src="./images/emogi.png" alt="">
