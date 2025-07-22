@@ -1,62 +1,64 @@
 <?php
 session_start();
-require_once "includes/init.php";
+require_once "includes/init.php";            // Auth و Url
+require_once "includes/connection.php";      // $conn
+require_once "classes/time_elapsed_string.php"; // تابع time_elapsed_string()
 
-// بررسی وضعیت لاگین
+// بررسی لاگین
 if (!Auth::isLoggedIn()) {
     Url::redirect('/login.php');
     exit;
 }
 
-// اتصال به دیتابیس
-require_once "includes/connection.php";
-
-// واکشی پست‌ها از دیتابیس به همراه اطلاعات کاربر
+// واکشی پست‌ها
 $sql = "SELECT posts.*, users.username, users.avatar 
         FROM posts 
         JOIN users ON posts.user_id = users.id 
         ORDER BY posts.created_at DESC";
+$stmt = $conn->prepare($sql);
+$stmt->execute();
+$result = $stmt->get_result();
 
-$result = $conn->query($sql);
+// آرایهٔ نهایی پست‌ها
+$posts = [];
 
-$post_data = [];
+while ($row = $result->fetch_assoc()) {
+    $post_id    = (int)$row['id'];
+    $avatar     = !empty($row['avatar']) ? $row['avatar'] : './images/default_avatar.png';
+    $username   = htmlspecialchars($row['username']);
+    $image      = htmlspecialchars($row['image']);
+    $caption    = htmlspecialchars($row['caption']);
+    $created_at = $row['created_at'];
 
-if ($result && $result->num_rows > 0) {
-    while ($row = $result->fetch_assoc()) {
-        $avatar = !empty($row['avatar']) ? $row['avatar'] : './images/default_avatar.png';
-        $username = htmlspecialchars($row['username']);
-        $minutes_ago = rand(1, 59); // برای تست؛ در عمل باید محاسبه دقیق‌تر زمان انجام بشه
-        $image = htmlspecialchars($row['image']);
-        $likes = rand(10, 500); // برای تست؛ اگر سیستم لایک داری، از COUNT(likes.id) استفاده کن
-        $caption = htmlspecialchars($row['caption']);
-        $comments_count = rand(0, 10); // برای تست؛ اگر سیستم کامنت داری، از COUNT(comments.id) استفاده کن
+    // تعداد لایک
+    $likeStmt = $conn->prepare("SELECT COUNT(*) AS cnt FROM likes WHERE post_id = ?");
+    $likeStmt->bind_param("i", $post_id);
+    $likeStmt->execute();
+    $likes = $likeStmt->get_result()->fetch_assoc()['cnt'] ?? 0;
+    $likeStmt->close();
 
-        $post_data[] = [
-            $avatar,        // پروفایل عکس
-            $username,      // نام کاربری
-            $minutes_ago,   // دقیقه پیش (تستی)
-            $image,         // عکس پست
-            $likes,         // تعداد لایک
-            $caption,       // کپشن
-            $comments_count // تعداد کامنت
-        ];
-    }
+    // تعداد کامنت
+    $cmtStmt = $conn->prepare("SELECT COUNT(*) AS cnt FROM comments WHERE post_id = ?");
+    $cmtStmt->bind_param("i", $post_id);
+    $cmtStmt->execute();
+    $comments_count = $cmtStmt->get_result()->fetch_assoc()['cnt'] ?? 0;
+    $cmtStmt->close();
+
+    // زمان نسبی
+    $time_ago = time_elapsed_string($created_at);
+
+    $posts[] = [
+        'id'             => $post_id,
+        'avatar'         => $avatar,
+        'username'       => $username,
+        'image'          => $image,
+        'caption'        => $caption,
+        'created_at'     => $created_at,
+        'time_ago'       => $time_ago,
+        'likes_count'    => $likes,
+        'comments_count' => $comments_count,
+    ];
 }
-$page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
-$limit = 5;
-
-$total_result = $conn->query("SELECT COUNT(*) as total FROM posts");
-$total = $total_result->fetch_assoc()['total'];
-
-$paginator = new Paginator($page, $limit, $total);
-$offset = $paginator->offset;
-
-$sql = "SELECT posts.*, users.username, users.avatar 
-        FROM posts 
-        JOIN users ON posts.user_id = users.id 
-        ORDER BY posts.created_at DESC
-        LIMIT $limit OFFSET $offset";
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -429,10 +431,133 @@ $sql = "SELECT posts.*, users.username, users.avatar
                         <div class="owl-carousel items">
                         </div>
                     </div>
-
                     <div class="posts">
-                    </div>
+  <?php if (!empty($posts)): ?>
+    <?php foreach ($posts as $post): ?>
+      <div class="post">
+        <div class="info">
+          <div class="person">
+            <img src="<?= $post['avatar'] ?>" alt="">
+            <a href="#"><?= $post['username'] ?></a>
+            <span class="circle">.</span>
+            <span><?= $post['time_ago'] ?></span>
+          </div>
+          <div class="more">
+            <img src="./images/show_more.png" alt="more">
+          </div>
+        </div>
+        <div class="image">
+          <img src="<?= $post['image'] ?>" alt="">
+        </div>
+        <div class="desc">
+          <div class="icons">
+            <div class="icon_left d-flex">
+              <div class="like">
+                <img class="not_loved" src="./images/love.png">
+                <img class="loved"    src="./images/heart.png">
+              </div>
+              <div class="chat">
+                <button type="button" class="btn p-0"
+                        data-bs-toggle="modal"
+                        data-bs-target="#comment_modal_<?= $post['id'] ?>">
+                  <img src="./images/bubble-chat.png" alt="comment">
+                </button>
+              </div>
+              <div class="send">
+                <button type="button" class="btn p-0"
+                        data-bs-toggle="modal"
+                        data-bs-target="#send_message_modal">
+                  <img src="./images/send.png" alt="send">
+                </button>
+              </div>
+            </div>
+            <div class="save not_saved">
+              <img class="hide saved"     src="./images/save_black.png">
+              <img class="not_saved"       src="./images/save-instagram.png">
+            </div>
+          </div>
+          <div class="liked">
+            <a class="bold" href="#"><?= $post['likes_count'] ?> likes</a>
+          </div>
+          <div class="post_desc">
+            <p>
+              <a class="bold" href="#"><?= $post['username'] ?></a>
+              <?= $post['caption'] ?>
+            </p>
+            <p>
+              <a class="gray" href="#"
+                 data-bs-toggle="modal"
+                 data-bs-target="#comment_modal_<?= $post['id'] ?>">
+                View all <?= $post['comments_count'] ?> comments
+              </a>
+            </p>
+            <input type="text" placeholder="Add a comment...">
+          </div>
+        </div>
+      </div>
 
+      <!-- Modal کامنت‌های این پست -->
+      <div class="modal fade" id="comment_modal_<?= $post['id'] ?>" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Comments</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+              <div class="comments">
+                <?php
+                  $cstmt = $conn->prepare("
+                    SELECT c.comment, c.created_at, u.username, u.avatar
+                    FROM comments c
+                    JOIN users u ON c.user_id = u.id
+                    WHERE c.post_id = ?
+                    ORDER BY c.created_at DESC
+                  ");
+                  $cstmt->bind_param("i", $post['id']);
+                  $cstmt->execute();
+                  $cres = $cstmt->get_result();
+                  while ($c = $cres->fetch_assoc()):
+                ?>
+                  <div class="comment mb-3">
+                    <div class="d-flex">
+                      <div class="img">
+                        <img src="<?= htmlspecialchars($c['avatar'] ?? './images/profile_img.jpg') ?>"
+                             alt="" style="width:40px;height:40px;border-radius:50%">
+                      </div>
+                      <div class="content ms-2">
+                        <div class="d-flex align-items-center">
+                          <h6 class="mb-0 me-2"><?= htmlspecialchars($c['username']) ?></h6>
+                          <small class="text-muted"><?= time_elapsed_string($c['created_at']) ?></small>
+                        </div>
+                        <p class="mb-0"><?= htmlspecialchars($c['comment']) ?></p>
+                      </div>
+                    </div>
+                  </div>
+                <?php endwhile; ?>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <form action="update_comment.php" method="POST" class="w-100 d-flex">
+                <input type="hidden" name="post_id" value="<?= $post['id'] ?>">
+                <img src="<?= htmlspecialchars($_SESSION['avatar'] ?? './images/profile_img.jpg') ?>"
+                     alt="" style="width:40px;height:40px;border-radius:50%;margin-right:8px;">
+                <input name="comment-input" type="text" class="form-control me-2"
+                       placeholder="Add a comment..." required>
+                <button type="submit" class="btn btn-primary">Send</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    <?php endforeach; ?>
+  <?php else: ?>
+    <p class="text-center">No posts available.</p>
+  <?php endif; ?>
+</div>
+
+                    </div>
                 </div>
             </div>
             <!--***** posts_container end ****** -->
@@ -568,91 +693,7 @@ $sql = "SELECT posts.*, users.username, users.avatar
             </div>
         </div>
 
-        <!-- Modal for add messages-->
-        <div class="modal fade" id="message_modal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h1 class="modal-title fs-5" id="exampleModalLabel">Comments</h1>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="comments">
-                            <div class="comment">
-                                <div class="d-flex">
-                                    <div class="img">
-                                        <img src="./images/profile_img.jpg" alt="">
-                                    </div>
-                                    <div class="content">
-                                        <div class="person">
-                                            <h4>namePerson</h4>
-                                            <span>3j</span>
-                                        </div>
-                                        <p>Wow amzing shot</p>
-                                        <div class="replay">
-                                            <button class="replay">replay</button>
-                                            <button class="translation">see translation</button>
-                                        </div>
-                                        <div class="answers">
-                                            <button class="see_comment">
-                                                <span class="hide_com">Hide all responses</span>
-                                                <span class="show_c"> <span class="line"></span> See the <span> 1
-                                                    </span> answers</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="like">
-                                    <img class="not_loved" src="./images/love.png" alt="">
-                                    <img class="loved" src="./images/heart.png" alt="">
-                                    <p> 55</p>
-                                </div>
-                            </div>
-                            <div class="responses">
-                                <div class="response comment">
-                                    <div class="d-flex">
-                                        <div class="img">
-                                            <img src="./images/profile_img.jpg" alt="">
-                                        </div>
-                                        <div class="content">
-                                            <div class="person">
-                                                <h4>namePerson</h4>
-                                                <span>3j</span>
-                                            </div>
-                                            <p>Wow amzing shot</p>
-                                            <div class="replay">
-                                                <button>replay</button>
-                                                <button>see translation</button>
-                                            </div>
-
-                                        </div>
-                                    </div>
-                                    <div class="like">
-                                        <img class="not_loved" src="./images/love.png" alt="">
-                                        <img class="loved" src="./images/heart.png" alt="">
-                                        <p> 55</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <form action="update_comment.php" method="POST">
-                            <div class="input">
-                                <img src="./images/profile_img.jpg" alt="">
-                                <input name="comment-input" type="text" id="emoji_comment" placeholder="Add a comment..." />
-                                <input type="hidden" name="post_id" value="2">
-                                <button type="submit" style="border: 0 solid #ffffff; background-color: #ffffff;">Send</button>
-                            </div>
-                            <!-- <div class="emogi">
-                                <img src="./images/emogi.png" alt="">
-                            </div> -->
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-
+ 
         <!--Create model-->
         <div class="modal fade" id="create_modal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">

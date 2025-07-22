@@ -1,5 +1,4 @@
 <?php
-session_start();
 require 'includes/connection.php';
 
 // تابع محاسبه زمان گذشته
